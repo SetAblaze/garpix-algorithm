@@ -17,9 +17,6 @@ file(GLOB_RECURSE SOURCES
     "${SOURCE_DIR}/*.cpp"
 )
 
-set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS
-    $<$<CONFIG:RELWITHDEBINFO>:QT_MESSAGELOGCONTEXT>
-)
 
 # Add the executable
 # switch win32 for exe if needed
