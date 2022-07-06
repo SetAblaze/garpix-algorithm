@@ -17,7 +17,6 @@ file(GLOB_RECURSE SOURCES
     "${SOURCE_DIR}/*.cpp"
 )
 
-
 # Add the executable
 # switch win32 for exe if needed
 if(WIN32)
