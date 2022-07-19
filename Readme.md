@@ -15,6 +15,36 @@ git
 3. Указать ссылку на этот репозиторий.
 4. Выбрать файл для запуска и запустить сборку и компиляцию проекта.
 
+##Установка по SSH:
+1. Клонировать репозиторий.
+2. Создадим пустую директорию для временных файлов и перейдём туда.
+fshp@panica-desktop:~$ mkdir tmp
+fshp@panica-desktop:~$ cd tmp/
+fshp@panica-desktop:~/tmp$
+
+Теперь запустим команду cmake, передав ей в качестве параметра путь к папке с исходниками:
+fshp@panica-desktop:~/tmp$ cmake ~/cmake/example_1/
+…
+— Build files have been written to: /home/fshp/tmp
+fshp@panica-desktop:~/tmp$
+fshp@panica-desktop:~/tmp$ ls
+CMakeCache.txt CMakeFiles cmake_install.cmake Makefile
+fshp@panica-desktop:~/tmp$
+
+Видим, что в папке появилось несколько временных файлов, необходимых для сборки проекта.
+Теперь можно запустить непосредственно make:
+fshp@panica-desktop:~/tmp$ make
+Scanning dependencies of target main
+[100%] Building CXX object CMakeFiles/main.dir/main.cpp.o
+Linking CXX executable main
+[100%] Built target main
+fshp@panica-desktop:~/tmp$ ./main
+Hello, World!
+fshp@panica-desktop:~/tmp$
+
+
+
+
 
 
 ##Описание модели потенциальных контейнеров
