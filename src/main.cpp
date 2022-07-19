@@ -147,6 +147,8 @@ protected:
       Borders.yBack = Borders.yFront - Group.Length;
     }
 
+    std::cout << " placed on level " << Borders.zBottom << " at point (" << Borders.xLeft << ", " << Borders.yBack << ")\n";
+
     return true;
   }
 
@@ -156,11 +158,11 @@ protected:
 
   bool CheckMassPosition(float x, float y, int h, std::vector<TBorders>& places) {
     for (const auto& place : places) {
-      if (place.zTop <= h
-        && (float)place.xLeft < x
-        && (float)place.xRight > x
-        && (float)place.yBack < y
-        && (float)place.yFront > y) {
+      if (place.zBottom < h
+        && (float)place.xLeft <= x
+        && (float)place.xRight >= x
+        && (float)place.yBack <= y
+        && (float)place.yFront >= y) {
         return false;
       }
     }
@@ -217,10 +219,6 @@ public:
         if (!PlaceContainer(inputStream[i])) {
           result.push_back(inputStream[i]);
           std::cout << " not placed\n";
-        }
-        else {
-          std::cout << "Container " << i << "  " << inputStream[i].Width << " x " << inputStream[i].Length << " x " << inputStream[i].Height << " placed on level " << "\n";
-            
         }
       }
 
@@ -312,12 +310,42 @@ protected:
 
       // Строим базовые потенциальные контейнеры
       std::vector<TBorders> elements;
+      int prev_x1 = -1;
       for (int i1 = 0; i1 < xLines.size() - 1; i1++) {
+        if (prev_x1 == xLines[i1])
+          continue;
+        else
+          prev_x1 = xLines[i1];
         for (int i2 = i1 + 1; i2 < xLines.size(); i2++) {
+          int prev_x2 = -1;
+          if (prev_x2 == xLines[i2])
+            continue;
+          else
+            prev_x2 = xLines[i2];
+          int prev_y1 = -1;
           for (int j1 = 0; j1 < yLines.size() - 1; j1++) {
+            if (prev_y1 == yLines[j1])
+              continue;
+            else
+              prev_y1 = yLines[j1];
+            int prev_y2 = -1;
             for (int j2 = j1 + 1; j2 < yLines.size(); j2++) {
+              if (prev_y2 == yLines[j2])
+                continue;
+              else
+                prev_y2 = yLines[j2];
+              int prev_z1 = -1;
               for (int k1 = 0; k1 < zLines.size() - 1; k1++) {
-                for (int k2 = k1; k2 < zLines.size(); k2++) {
+                if (prev_z1 == zLines[k1])
+                  continue;
+                else
+                  prev_z1 = zLines[k1];
+                int prev_z2 = -1;
+                for (int k2 = k1 + 1; k2 < zLines.size(); k2++) {
+                  if (prev_z2 == zLines[k2])
+                    continue;
+                  else
+                    prev_z2 = zLines[k2];
                   if (xLines[i1] != xLines[i2] && yLines[j1] != yLines[j2] && zLines[k1] != zLines[k2]) {
                     TBorders newBox;
                     newBox.xLeft = Min(xLines[i1], xLines[i2]);
@@ -352,7 +380,12 @@ protected:
         }
 
         if (isMaximal) {
+          bool isEqual = false;
+////          for (const auto& old_element : PotentialContainers) {
+////            if FirstEqualSecond(elements[i], old_element)
+////          }
           PotentialContainers.push_back(std::move(elements[i]));
+////          std::cout << "container " << elements[i].xLeft << "-" << elements[i].xRight << ", " << elements[i].yBack << "-" << elements[i].yFront << ", " << elements[i].zBottom << "-" << elements[i].zTop << "\n";
         }
       }
 
@@ -371,6 +404,19 @@ protected:
         && box1.yBack <= box2.yBack
         && box1.zTop >= box2.zTop
         && box1.zBottom <= box2.zBottom;
+
+      return result;
+    }
+
+    bool FirstEqualSecond(TBorders& box1, TBorders& box2) {
+      bool result = box1.xRight == box2.xRight
+        && box1.xLeft == box2.xLeft
+        && box1.yFront == box2.yFront
+        && box1.yBack == box2.yBack
+        && box1.zTop == box2.zTop
+        && box1.zBottom == box2.zBottom;
+
+      return result;
     }
 
     bool CheckLoadedIntersection(TBorders& box) {
@@ -414,6 +460,38 @@ private:
 
 int main (int argc, char* argv[])
 {
+  TCargoSpace trailer(10, 10, 10, 15, 15);
+
+  std::vector<TCargoGroup> inputStream;
+  TCargoGroup cg;
+  cg.Mass = 1;
+  cg.Width = 3;
+  cg.Length = 9;
+  cg.Height = 1;
+  cg.GroupId = 0;
+  inputStream.push_back(std::move(cg));
+  inputStream.push_back(std::move(cg));
+  inputStream.push_back(std::move(cg));
+  cg.Length = 15;
+  inputStream.push_back(std::move(cg));
+  cg.Length = 1;
+  inputStream.push_back(std::move(cg));
+  inputStream.push_back(std::move(cg));
+  cg.Width = 1;
+  cg.Height = 3;
+  cg.Length = 7;
+  inputStream.push_back(std::move(cg));
+  cg.Width = 2;
+  inputStream.push_back(std::move(cg));
+  inputStream.push_back(std::move(cg));
+  inputStream.push_back(std::move(cg));
+  inputStream.push_back(std::move(cg));
+  inputStream.push_back(std::move(cg));
+
+
+  trailer.LoadContainers(inputStream);
+
+
     std::ifstream ifs { R"(test.json)" };
     if ( !ifs.is_open() )
     {
@@ -448,5 +526,10 @@ int main (int argc, char* argv[])
     std::cout << jsonStr << '\n';
 
     system("pause");
+
+
+
+
+
     return 0;
 }
