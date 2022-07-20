@@ -72,6 +72,10 @@ public:
     return Borders;
   }
 
+  TCargoGroup& GetCargoGroup() {
+    return Group;
+  }
+
   int GetMass() {
     return Group.Mass;
   }
@@ -213,19 +217,17 @@ public:
     }
 
 
-    std::vector<TCargoGroup>& LoadContainers(std::vector<TCargoGroup>& inputStream) { // Возвращает контейнеры, которые не поместились.
-      std::vector<TCargoGroup> result;
-
+    std::vector<TCargoGroup>* LoadContainers(std::vector<TCargoGroup>& inputStream) { // Возвращает контейнеры, которые не поместились.
       int i = 0;
       for (int i = 0; i < inputStream.size(); i++) {
         std::cout << "Container " << i << "  " << inputStream[i].Width << " x " << inputStream[i].Length << " x " << inputStream[i].Height << ", mass " << inputStream[i].Mass;
         if (!PlaceContainer(inputStream[i])) {
-          result.push_back(inputStream[i]);
+          UnpackedContainers.push_back(inputStream[i]);
           std::cout << " not placed\n";
         }
       }
 
-      return result;
+      return &UnpackedContainers;
     }
 
     float GetLoadingHeight() {
@@ -263,8 +265,8 @@ public:
       return pos;
     }
 
-    std::vector<TContainer*>& GetLoadedSpace() {
-      return LoadedSpace;
+    std::vector<TContainer*>* GetLoadedSpace() {
+      return &LoadedSpace;
     }
 
     int GetMass() {
@@ -490,6 +492,7 @@ private:
   int CurrentBlankVolume; // Текущий доступный объем
   std::vector<TContainer*> LoadedSpace;// Вектор Загруженных Контейнеров
   std::vector<TBorders> PotentialContainers;//Вектор Потенциальных Контейнеров
+  std::vector<TCargoGroup> UnpackedContainers; // Вектор неразмещенных контейнеров
 };
 
 using namespace rapidjson;
@@ -580,7 +583,8 @@ int main(int argc, char* argv[])
   unpacked.SetArray();
 
   //***************************************************************
-  for (const auto& lost : trailer.LoadContainers(inputStream)) {
+  const auto lostBoxes = trailer.LoadContainers(inputStream);
+  for (const auto& lost : *lostBoxes) {
     rapidjson::Value lostContainer;
     lostContainer.SetObject();
 
@@ -597,47 +601,91 @@ int main(int argc, char* argv[])
     gabs.AddMember("length", jsonVal, allocator);
     lostContainer.AddMember("size", gabs, allocator);
 
+    gabs.SetObject();
+    jsonVal.SetInt64(lost.Height);
+    gabs.AddMember("height", jsonVal, allocator);
+    jsonVal.SetInt64(lost.Width);
+    gabs.AddMember("width", jsonVal, allocator);
+    jsonVal.SetInt64(lost.Length);
+    gabs.AddMember("length", jsonVal, allocator);
+    lostContainer.AddMember("calculated_size", gabs, allocator);
+
     rapidjson::Value pos_gabs;
     pos_gabs.SetObject();
-    jsonVal.SetFloat((float)lost.Height / 2.);
+    jsonVal.SetFloat(-(float)lost.Height / 2.);
     pos_gabs.AddMember("z", jsonVal, allocator);
-    jsonVal.SetFloat((float)lost.Width / 2.);
+    jsonVal.SetFloat(-(float)lost.Width / 2.);
     pos_gabs.AddMember("x", jsonVal, allocator);
-    jsonVal.SetFloat((float)lost.Length /2.);
+    jsonVal.SetFloat(-(float)lost.Length /2.);
     pos_gabs.AddMember("y", jsonVal, allocator);
     lostContainer.AddMember("position", pos_gabs, allocator);
+
+    jsonVal.SetString(lost.GroupId.c_str(), allocator);
+    lostContainer.AddMember("group_id", jsonVal, allocator);
+
+    jsonVal.SetString(lost.Id.c_str(), allocator);
+    lostContainer.AddMember("id", jsonVal, allocator);
+
+    jsonVal.SetInt(lost.Sort);
+    lostContainer.AddMember("sort", jsonVal, allocator);
+
     unpacked.PushBack(lostContainer, allocator);
+
   }
 
   rapidjson::Value packed;
   packed.SetArray();
-  for (const auto& lost : trailer.GetLoadedSpace()) {
-    rapidjson::Value lostContainer;
-    lostContainer.SetObject();
+  const auto loadedSpace = trailer.GetLoadedSpace();
+  for (const auto& loaded : *loadedSpace) {
+    rapidjson::Value loadedContainer;
+    loadedContainer.SetObject();
 
-    jsonVal.SetFloat(lost->GetMass());
-    lostContainer.AddMember("mass", jsonVal, allocator);
+    jsonVal.SetFloat(loaded->GetMass());
+    loadedContainer.AddMember("mass", jsonVal, allocator);
 
-    rapidjson::Value gabs;
-    gabs.SetObject();
-    jsonVal.SetInt64(lost->GetBorders().zTop - lost->GetBorders().zBottom);
-    gabs.AddMember("height", jsonVal, allocator);
-    jsonVal.SetInt64(lost->GetBorders().xRight - lost->GetBorders().xLeft);
-    gabs.AddMember("width", jsonVal, allocator);
-  //  jsonVal.SetInt64(lost->GetBorders().Length);
-  //  gabs.AddMember("length", jsonVal, allocator);
-    lostContainer.AddMember("size", gabs, allocator);
+    rapidjson::Value gabsLoaded;
+    gabsLoaded.SetObject();
+    jsonVal.SetInt(loaded->GetBorders().zTop - loaded->GetBorders().zBottom);
+    gabsLoaded.AddMember("height", jsonVal, allocator);
+    jsonVal.SetInt(loaded->GetBorders().xRight - loaded->GetBorders().xLeft);
+    gabsLoaded.AddMember("width", jsonVal, allocator);
+    jsonVal.SetInt(loaded->GetBorders().yFront - loaded->GetBorders().yBack);
+    gabsLoaded.AddMember("length", jsonVal, allocator);
+    loadedContainer.AddMember("size", gabsLoaded, allocator);
 
-    rapidjson::Value pos_gabs;
-    pos_gabs.SetObject();
-    jsonVal.SetFloat((float)(lost->GetBorders().zTop - lost->GetBorders().zBottom) / 2.);
-    pos_gabs.AddMember("z", jsonVal, allocator);
-    jsonVal.SetFloat((float)(lost->GetBorders().xRight - lost->GetBorders().xLeft) / 2.);
-    pos_gabs.AddMember("x", jsonVal, allocator);
- //   jsonVal.SetFloat((float)lost->GetBorders().Length / 2.);
- //   pos_gabs.AddMember("y", jsonVal, allocator);
-    lostContainer.AddMember("position", pos_gabs, allocator);
-    packed.PushBack(lostContainer, allocator);
+    gabsLoaded.SetObject();
+    jsonVal.SetInt(loaded->GetBorders().zTop - loaded->GetBorders().zBottom);
+    gabsLoaded.AddMember("height", jsonVal, allocator);
+    jsonVal.SetInt(loaded->GetBorders().xRight - loaded->GetBorders().xLeft);
+    gabsLoaded.AddMember("width", jsonVal, allocator);
+    jsonVal.SetInt(loaded->GetBorders().yFront - loaded->GetBorders().yBack);
+    gabsLoaded.AddMember("length", jsonVal, allocator);
+    loadedContainer.AddMember("calculated_size", gabsLoaded, allocator);
+
+    rapidjson::Value posGabsLoaded;
+    posGabsLoaded.SetObject();
+    jsonVal.SetFloat((float)(loaded->GetBorders().zTop - loaded->GetBorders().zBottom) / 2.);
+    posGabsLoaded.AddMember("z", jsonVal, allocator);
+    jsonVal.SetFloat((float)(loaded->GetBorders().xRight - loaded->GetBorders().xLeft) / 2.);
+    posGabsLoaded.AddMember("x", jsonVal, allocator);
+    jsonVal.SetFloat((float)(loaded->GetBorders().yFront - loaded->GetBorders().yBack) / 2.);
+    posGabsLoaded.AddMember("y", jsonVal, allocator);
+    loadedContainer.AddMember("position", posGabsLoaded, allocator);
+
+    std::string typePacked = "box";
+    jsonVal.SetString(typePacked.c_str(), allocator);
+    loadedContainer.AddMember("type", jsonVal, allocator);
+
+    jsonVal.SetString(loaded->GetCargoGroup().GroupId.c_str(), allocator);
+    loadedContainer.AddMember("cargo_id", jsonVal, allocator);
+
+    jsonVal.SetString(loaded->GetCargoGroup().Id.c_str(), allocator);
+    loadedContainer.AddMember("id", jsonVal, allocator);
+
+    jsonVal.SetInt(loaded->GetCargoGroup().Sort);
+    loadedContainer.AddMember("sort", jsonVal, allocator);
+
+    packed.PushBack(loadedContainer, allocator);
   }
 
   // calculate cargo_space
@@ -672,7 +720,7 @@ int main(int argc, char* argv[])
 
   resultDoc.AddMember("cargoSpace", resultCargoSpace, allocator);
   resultDoc.AddMember("unpacked", unpacked, allocator);
-  resultDoc.AddMember("cargos", unpacked, allocator);
+  resultDoc.AddMember("cargos", packed, allocator);
   
   /*
     "size" : [230, 230, 380] ,
