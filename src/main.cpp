@@ -50,7 +50,7 @@ struct TCargoGroup {
 //***********************************************************************************************************
 class TContainer {
 public:
-  TContainer::TContainer(const TCargoGroup group)
+  TContainer(const TCargoGroup group)
     : Group(group)
   {
     Volume = Group.Width * Group.Height * Group.Length;
@@ -190,7 +190,7 @@ private:
 class TCargoSpace {
 public:
     //Конструктор
-    TCargoSpace::TCargoSpace(const int width, const int height, const int length, const int mass, const int carrying_capacity)
+    TCargoSpace(const int width, const int height, const int length, const int mass, const int carrying_capacity)
         : Width(width)
         , Height(height)
         , Length(length)
@@ -209,7 +209,7 @@ public:
       CurrentBlankVolume = width * height * length;
     }
 
-    TCargoSpace::~TCargoSpace() {
+    ~TCargoSpace() {
 		for (int i = 0; i < LoadedSpace.size(); i++) {
 			delete LoadedSpace[i];
 			LoadedSpace[i] = nullptr;
@@ -530,9 +530,9 @@ int main(int argc, char* argv[])
   int spaceHeight = -1;
   if (cargoSpace["size"].IsArray()) {
     const auto size = cargoSpace["size"].GetArray();
-    spaceWidth = size[0].GetInt();
-    spaceLength = size[1].GetInt();
-    spaceHeight = size[2].GetInt();
+    spaceWidth = size[2].GetInt();
+    spaceLength = size[0].GetInt();
+    spaceHeight = size[1].GetInt();
   }
   else {
     const auto size = cargoSpace["size"].GetObject();
@@ -553,9 +553,9 @@ int main(int argc, char* argv[])
     cg.Mass = cargoGroups[i]["mass"].GetInt();
     if (cargoGroups[i]["size"].IsArray()) {
       const auto size = cargoGroups[i]["size"].GetArray();
-      cg.Width = size[0].GetInt();
-      cg.Length = size[1].GetInt();
-      cg.Height = size[2].GetInt();
+      cg.Width = size[2].GetInt();
+      cg.Length = size[0].GetInt();
+      cg.Height = size[1].GetInt();
     }
     else {
       const auto size = cargoGroups[i]["size"].GetObject();
@@ -573,68 +573,18 @@ int main(int argc, char* argv[])
     }
   }
 
+  //***************************************************************
+  const auto lostBoxes = trailer.LoadContainers(inputStream);
+
   rapidjson::Value jsonVal;
   rapidjson::Document resultDoc;
   auto& allocator = resultDoc.GetAllocator();
 
   resultDoc.SetObject();
 
-  rapidjson::Value unpacked;
-  unpacked.SetArray();
-
-  //***************************************************************
-  const auto lostBoxes = trailer.LoadContainers(inputStream);
-  for (const auto& lost : *lostBoxes) {
-    rapidjson::Value lostContainer;
-    lostContainer.SetObject();
-
-    jsonVal.SetFloat(lost.Mass);
-    lostContainer.AddMember("mass", jsonVal, allocator);
-
-    rapidjson::Value gabs;
-    gabs.SetObject();
-    jsonVal.SetInt64(lost.Height);
-    gabs.AddMember("height", jsonVal, allocator);
-    jsonVal.SetInt64(lost.Width);
-    gabs.AddMember("width", jsonVal, allocator);
-    jsonVal.SetInt64(lost.Length);
-    gabs.AddMember("length", jsonVal, allocator);
-    lostContainer.AddMember("size", gabs, allocator);
-
-    gabs.SetObject();
-    jsonVal.SetInt64(lost.Height);
-    gabs.AddMember("height", jsonVal, allocator);
-    jsonVal.SetInt64(lost.Width);
-    gabs.AddMember("width", jsonVal, allocator);
-    jsonVal.SetInt64(lost.Length);
-    gabs.AddMember("length", jsonVal, allocator);
-    lostContainer.AddMember("calculated_size", gabs, allocator);
-
-    rapidjson::Value pos_gabs;
-    pos_gabs.SetObject();
-    jsonVal.SetFloat(-(float)lost.Height / 2.);
-    pos_gabs.AddMember("z", jsonVal, allocator);
-    jsonVal.SetFloat(-(float)lost.Width / 2.);
-    pos_gabs.AddMember("x", jsonVal, allocator);
-    jsonVal.SetFloat(-(float)lost.Length /2.);
-    pos_gabs.AddMember("y", jsonVal, allocator);
-    lostContainer.AddMember("position", pos_gabs, allocator);
-
-    jsonVal.SetString(lost.GroupId.c_str(), allocator);
-    lostContainer.AddMember("group_id", jsonVal, allocator);
-
-    jsonVal.SetString(lost.Id.c_str(), allocator);
-    lostContainer.AddMember("id", jsonVal, allocator);
-
-    jsonVal.SetInt(lost.Sort);
-    lostContainer.AddMember("sort", jsonVal, allocator);
-
-    unpacked.PushBack(lostContainer, allocator);
-
-  }
-
   rapidjson::Value packed;
   packed.SetArray();
+  int idCounter = 0;
   const auto loadedSpace = trailer.GetLoadedSpace();
   for (const auto& loaded : *loadedSpace) {
     rapidjson::Value loadedContainer;
@@ -645,47 +595,114 @@ int main(int argc, char* argv[])
 
     rapidjson::Value gabsLoaded;
     gabsLoaded.SetObject();
-    jsonVal.SetInt(loaded->GetBorders().zTop - loaded->GetBorders().zBottom);
+    jsonVal.SetFloat((float)(loaded->GetBorders().zTop - loaded->GetBorders().zBottom) / 1000.);
     gabsLoaded.AddMember("height", jsonVal, allocator);
-    jsonVal.SetInt(loaded->GetBorders().xRight - loaded->GetBorders().xLeft);
+    jsonVal.SetFloat((float)(loaded->GetBorders().xRight - loaded->GetBorders().xLeft) / 1000.);
     gabsLoaded.AddMember("width", jsonVal, allocator);
-    jsonVal.SetInt(loaded->GetBorders().yFront - loaded->GetBorders().yBack);
+    jsonVal.SetFloat((float)(loaded->GetBorders().yFront - loaded->GetBorders().yBack) / 1000.);
     gabsLoaded.AddMember("length", jsonVal, allocator);
     loadedContainer.AddMember("size", gabsLoaded, allocator);
 
     gabsLoaded.SetObject();
-    jsonVal.SetInt(loaded->GetBorders().zTop - loaded->GetBorders().zBottom);
+    jsonVal.SetFloat((float)(loaded->GetBorders().zTop - loaded->GetBorders().zBottom) / 1000.);
     gabsLoaded.AddMember("height", jsonVal, allocator);
-    jsonVal.SetInt(loaded->GetBorders().xRight - loaded->GetBorders().xLeft);
+    jsonVal.SetFloat((float)(loaded->GetBorders().xRight - loaded->GetBorders().xLeft) / 1000.);
     gabsLoaded.AddMember("width", jsonVal, allocator);
-    jsonVal.SetInt(loaded->GetBorders().yFront - loaded->GetBorders().yBack);
+    jsonVal.SetFloat((float)(loaded->GetBorders().yFront - loaded->GetBorders().yBack) / 1000.);
     gabsLoaded.AddMember("length", jsonVal, allocator);
     loadedContainer.AddMember("calculated_size", gabsLoaded, allocator);
 
     rapidjson::Value posGabsLoaded;
     posGabsLoaded.SetObject();
-    jsonVal.SetFloat((float)(loaded->GetBorders().zTop - loaded->GetBorders().zBottom) / 2.);
-    posGabsLoaded.AddMember("z", jsonVal, allocator);
-    jsonVal.SetFloat((float)(loaded->GetBorders().xRight - loaded->GetBorders().xLeft) / 2.);
-    posGabsLoaded.AddMember("x", jsonVal, allocator);
-    jsonVal.SetFloat((float)(loaded->GetBorders().yFront - loaded->GetBorders().yBack) / 2.);
+    jsonVal.SetFloat((float)(loaded->GetBorders().zTop - loaded->GetBorders().zBottom) / 2000.);
     posGabsLoaded.AddMember("y", jsonVal, allocator);
+    jsonVal.SetFloat((float)(loaded->GetBorders().xRight - loaded->GetBorders().xLeft) / 2000.);
+    posGabsLoaded.AddMember("z", jsonVal, allocator);
+    jsonVal.SetFloat((float)(loaded->GetBorders().yFront - loaded->GetBorders().yBack) / 2000.);
+    posGabsLoaded.AddMember("x", jsonVal, allocator);
     loadedContainer.AddMember("position", posGabsLoaded, allocator);
 
     std::string typePacked = "box";
     jsonVal.SetString(typePacked.c_str(), allocator);
     loadedContainer.AddMember("type", jsonVal, allocator);
 
+    jsonVal.SetBool(true);
+    loadedContainer.AddMember("stacking", jsonVal, allocator);
+
+    jsonVal.SetBool(true);
+    loadedContainer.AddMember("turnover", jsonVal, allocator);
+
     jsonVal.SetString(loaded->GetCargoGroup().GroupId.c_str(), allocator);
     loadedContainer.AddMember("cargo_id", jsonVal, allocator);
 
-    jsonVal.SetString(loaded->GetCargoGroup().Id.c_str(), allocator);
+    jsonVal.SetInt(idCounter);
     loadedContainer.AddMember("id", jsonVal, allocator);
+	idCounter ++;
 
     jsonVal.SetInt(loaded->GetCargoGroup().Sort);
     loadedContainer.AddMember("sort", jsonVal, allocator);
 
     packed.PushBack(loadedContainer, allocator);
+  }
+
+  rapidjson::Value unpacked;
+  unpacked.SetArray();
+
+  for (const auto& lost : *lostBoxes) {
+    rapidjson::Value lostContainer;
+    lostContainer.SetObject();
+
+    jsonVal.SetFloat(lost.Mass);
+    lostContainer.AddMember("mass", jsonVal, allocator);
+
+    rapidjson::Value gabs;
+    gabs.SetObject();
+    jsonVal.SetFloat((float)lost.Height / 1000.);
+    gabs.AddMember("height", jsonVal, allocator);
+    jsonVal.SetFloat((float)lost.Width / 1000.);
+    gabs.AddMember("width", jsonVal, allocator);
+    jsonVal.SetFloat((float)lost.Length / 1000.);
+    gabs.AddMember("length", jsonVal, allocator);
+    lostContainer.AddMember("size", gabs, allocator);
+
+    //gabs.SetObject();
+   // jsonVal.SetFloat((float)lost.Height / 1000.);
+   // gabs.AddMember("height", jsonVal, allocator);
+///jsonVal.SetFloat((float)lost.Width / 1000.);
+  //  gabs.AddMember("width", jsonVal, allocator);
+  //  jsonVal.SetFloat((float)lost.Length / 1000.);
+   // gabs.AddMember("length", jsonVal, allocator);
+   // lostContainer.AddMember("calculated_size", gabs, allocator);
+    
+    
+    jsonVal.SetBool(true);
+    lostContainer.AddMember("stacking", jsonVal, allocator);
+
+    jsonVal.SetBool(true);
+    lostContainer.AddMember("turnover", jsonVal, allocator);
+
+    rapidjson::Value pos_gabs;
+    pos_gabs.SetObject();
+    jsonVal.SetFloat(-(float)lost.Height / 2000.);
+    pos_gabs.AddMember("z", jsonVal, allocator);
+    jsonVal.SetFloat(-(float)lost.Width / 2000.);
+    pos_gabs.AddMember("x", jsonVal, allocator);
+    jsonVal.SetFloat(-(float)lost.Length /2000.);
+    pos_gabs.AddMember("y", jsonVal, allocator);
+    lostContainer.AddMember("position", pos_gabs, allocator);
+
+    jsonVal.SetString(lost.GroupId.c_str(), allocator);
+    lostContainer.AddMember("group_id", jsonVal, allocator);
+
+    jsonVal.SetInt(idCounter);
+    lostContainer.AddMember("id", jsonVal, allocator);
+	idCounter ++;
+
+    jsonVal.SetInt(lost.Sort);
+    lostContainer.AddMember("sort", jsonVal, allocator);
+
+    unpacked.PushBack(lostContainer, allocator);
+
   }
 
   // calculate cargo_space
@@ -694,9 +711,9 @@ int main(int argc, char* argv[])
 
   rapidjson::Value loadingSize;
   loadingSize.SetObject();
-  float LoadingHeight = trailer.GetLoadingHeight();
-  float LoadingWidth = trailer.GetLoadingWidth();
-  float LoadingLength = trailer.GetLoadingLength();
+  float LoadingHeight = (float)spaceHeight / 1000.;
+  float LoadingWidth = (float)spaceWidth / 1000.;
+  float LoadingLength = (float)spaceLength / 1000.;
 
   jsonVal.SetFloat(LoadingHeight);
   loadingSize.AddMember("height", jsonVal, allocator);
